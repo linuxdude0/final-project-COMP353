@@ -320,9 +320,23 @@ class TableHandler {
 		return $page;
 	}
 }
-$arr = array("Users", "Location", "Personnel", "ClubMember", "FamilyMember", "Team", "SecondaryFamilyMember", "Session", "ClubMemberPartOfTeam", "RegistrationAtLocation");
+$arr = array (
+	"ClubMember",
+	"ClubMemberPartOfTeam",
+	"Email",
+	"FamilyMember",
+	"GeneralManagement",
+	"Location",
+	"LocationOperatingStaff",
+	"Personnel",
+	"RegistrationAtLocation",
+	"SecondaryFamilyMember",
+	"Session",
+	"Team",
+	"Users",
+);
 $a = fopen("manage.php", "w") or die("huh");
-fwrite($a, "<html><head><title>manage</title></head><body>");
+fwrite($a, "<html><head><title>manage</title></head><body><a href='./index.php'>Home</a><br><br>");
 foreach($arr as $b) {
 	fwrite($a, "<a href = './".$b.".php'>".$b."</a><br>");
 }

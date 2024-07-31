@@ -108,11 +108,11 @@ CREATE TABLE GeneralManagement(
     endDate DATE,
     PRIMARY KEY(locID, staffID),
     CONSTRAINT fk_general_management_location FOREIGN KEY(locID) REFERENCES Location(locID)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE,
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
     CONSTRAINT fk_general_management_staff FOREIGN KEY(staffID) REFERENCES Personnel(staffID)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 );
 
 CREATE TABLE RegistrationAtLocation(
@@ -122,11 +122,11 @@ CREATE TABLE RegistrationAtLocation(
     endDate DATE,
     PRIMARY KEY(locID, famID, startDate),
     CONSTRAINT fk_registration_location FOREIGN KEY(locID) REFERENCES Location(locID)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE,
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
     CONSTRAINT fk_registration_family FOREIGN KEY(famID) REFERENCES FamilyMember(famID)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 );
 
 CREATE TABLE Team(
@@ -934,11 +934,8 @@ FOR EACH ROW  -- for each row being inserted
 BEGIN
     DECLARE age INT;
     DECLARE dob DATE;
-
     SELECT U.dateOfBirth INTO dob FROM Users AS U WHERE U.userID = NEW.clubID;
-
     SET age = TIMESTAMPDIFF(YEAR, dob, CURDATE());
-
     IF age < 4 OR age > 10 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Club members must be between 4 and 10 years old.';
@@ -952,9 +949,7 @@ BEFORE INSERT ON Personnel
 FOR EACH ROW
 BEGIN
     DECLARE socialIns CHAR(9);
-    
     SELECT U.SSN INTO socialIns FROM Users AS U WHERE U.userID = NEW.staffID;
-
     IF socialIns IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'SSN must be entered for all Personnels!';
@@ -968,14 +963,11 @@ CREATE TRIGGER ensure_one_personnel_per_loc_t
 BEFORE INSERT ON LocationOperatingStaff
 FOR EACH ROW
 BEGIN
-
     DECLARE currentWorkplace INTEGER;
-
     SELECT LOS.locID 
     INTO currentWorkplace 
     FROM LocationOperatingStaff AS LOS 
     WHERE LOS.staffID = NEW.staffID AND LOS.endDate IS NULL; -- if endDate is null, means he / she works somewhere
-
     IF currentWorkplace IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'An employee can work at a single location at a time only!';
@@ -990,12 +982,10 @@ BEFORE INSERT ON GeneralManagement
 FOR EACH ROW
 BEGIN
     DECLARE assignedLoc INTEGER;
-
     SELECT LOS.locID
     INTO assignedLoc
     FROM LocationOperatingStaff LOS
     WHERE LOS.staffID = NEW.staffID AND LOS.locID = NEW.locID AND LOS.endDate IS NULL;
-
     IF assignedLoc IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'A general manager must be associated with the same location in the LOS table first!';
@@ -1023,11 +1013,13 @@ BEGIN
 END;
 //
 
+-- only one active manager per location in GeneralManagement during update
 CREATE TRIGGER ensure_single_manager_update_t
 BEFORE UPDATE ON GeneralManagement
 FOR EACH ROW
 BEGIN
     -- Check if there is another active manager at the same location
+    -- Check if the new state of the row being updated would violate the single active manager constraint
     IF NEW.endDate IS NULL AND 
        EXISTS (
            SELECT 1 
@@ -1043,9 +1035,8 @@ END;
 //
 
 
--- only one active manager per location in GeneralManagement during update
-CREATE TRIGGER ensure_single_manager_update
-BEFORE UPDATE ON GeneralManagement
+CREATE TRIGGER ensure_single_manager_insert
+BEFORE INSERT ON GeneralManagement
 FOR EACH ROW
 BEGIN
     -- Check if the new state of the row being updated would violate the single active manager constraint
@@ -1069,10 +1060,8 @@ CREATE TRIGGER ensure_team_same_location_t
 BEFORE INSERT ON ClubMemberPartOfTeam
 FOR EACH ROW
 BEGIN
-
     DECLARE playerLocID INTEGER;
     DECLARE teamLocID INTEGER;
-
     -- finding which location the player is currently associated with
     SELECT L.locID
     INTO playerLocID
@@ -1081,13 +1070,11 @@ BEGIN
         INNER JOIN RegistrationAtLocation RL ON F.famID = RL.famID
         INNER JOIN Location L ON RL.locID = L.locID
     WHERE CM.clubID = NEW.clubID AND RL.endDate IS NULL;
-
     -- finding which location the team is currently associated with
     SELECT T.teamLocation
     INTO teamLocID
     FROM Team T
     WHERE NEW.teamID = T.teamID;
-
     IF playerLocID <> teamLocID THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Club Member Must be associated with the same location as the team to be assigned!';
@@ -1100,35 +1087,29 @@ CREATE TRIGGER ensure_same_gender_on_team_t
 BEFORE INSERT ON ClubMemberPartOfTeam
 FOR EACH ROW
 BEGIN
-
     DECLARE newMemberGender CHAR(1);
     DECLARE teamGender VARCHAR(5);
-
     -- time to find what gender is our new team member, it's a single ascii char either a capital M or F
     SELECT U.gender
     INTO newMemberGender
     FROM ClubMember CM
         INNER JOIN Users U ON U.userID = CM.clubID
     WHERE CM.clubID = NEW.clubID;
-
     -- time to find if our team is for boys or girls...
     SELECT T.teamType
     INTO teamGender
     FROM Team T
     WHERE T.teamID = NEW.teamID;
-
     IF ((teamGender = 'boys' AND newMemberGender = 'F') OR (teamGender = 'girls' AND newMemberGender = 'M')) THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Only same-gender club members can be assigned on the same team!';
-    
     END IF;
 END;
+
 -- procedure + trigger to make sure the sessions for the same teams are scheduled 3h apart
 CREATE PROCEDURE check_session_schedule_f(IN newTeamID INT, IN newTime TIMESTAMP)
 BEGIN
-
     DECLARE sessionCount INT;
-
     -- checking if the team has sessions less than 3 hours apart
     SELECT COUNT(*)
     INTO sessionCount
@@ -1142,7 +1123,6 @@ BEGIN
         WHERE teamTwoID = newTeamID
     ) AS sessions
     WHERE ABS(TIMESTAMPDIFF(HOUR, sessions.time, newTime)) < 3;
-
     IF sessionCount > 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Cannot schedule a session less than 3 hours apart from another session for the same team';
@@ -1160,16 +1140,13 @@ BEGIN
 END 
 //
 
-
 CREATE TRIGGER check_session_conflicts_for_member_T
 BEFORE INSERT ON ClubMemberPartOfTeam
 FOR EACH ROW
 BEGIN
     DECLARE conflicting_sessions_count INT;
-
     -- Check if there are sessions within 3 hours of each other for the specified club member
     SELECT COUNT(*) INTO conflicting_sessions_count
-    
     -- not my query fully, but i polished it a lot 
     -- what this does: s1 is any session already scheduled for a club member
     -- s2 is any session for the team we are adding the member to
@@ -1183,14 +1160,10 @@ BEGIN
                     (SELECT teamID FROM ClubMemberPartOfTeam WHERE clubID = NEW.clubID) OR 
                 s1.teamTwoID IN 
                     (SELECT teamID FROM ClubMemberPartOfTeam WHERE clubID = NEW.clubID)) 
-                    
                     AND
-                
                 (s2.teamOneID = NEW.teamID OR s2.teamTwoID = NEW.teamID) AND
-                
                 ABS(TIMESTAMPDIFF(HOUR, s1.time, s2.time)) <= 3
     ) AS session_conflicts;
-
     IF conflicting_sessions_count > 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Cannot insert club member into team: sessions are scheduled within 3 hours of each other.';
@@ -1243,26 +1216,34 @@ SELECT DISTINCT
 END//
 
 -- Q8) 
-
-
 CREATE PROCEDURE `Q8`(in famID int)
 BEGIN
-Select FM.famID,FM.secondaryFamRelation,
-SF.firstName,SF.lastName,SF.phone,
-CM.clubID,
-U.firstName AS ClubMember_FirstName, U.lastName, U.dateOfBirth,U.SSN, U.medicare,U.address,U.postalCode,U.province,U.city, U.phone 
-FROM FamilyMember FM
-LEFT JOIN SecondaryFamilyMember SF
-ON SF.secondaryFamID = FM.secondaryFamID
-INNER JOIN ClubMember CM
-ON CM.famMemberID = FM.famID
-INNER JOIN Users U
-ON U.userID = CM.clubID
-Where FM.famID =famID;
+    SELECT 
+        FM.famID as fm_famID,
+        FM.secondaryFamRelation as fm_relation,
+        SF.secondaryFamID as sf_id,
+        SF.firstName as sf_first_name,
+        SF.lastName as sf_last_name,
+        SF.phone as sf_phone,
+        CM.clubID as cm_id,
+        U.firstName AS u_firstname,
+        U.lastName as u_lastname,
+        U.dateOfBirth as u_dob,
+        U.SSN as u_ssn,
+        U.medicare as u_medicare,
+        U.address as u_address,
+        U.postalCode,
+        U.province,
+        U.city,
+        U.phone 
+    FROM FamilyMember FM
+    INNER JOIN ClubMember CM ON CM.famMemberID = FM.famID
+    INNER JOIN Users U ON U.userID = CM.clubID
+    LEFT JOIN SecondaryFamilyMember SF ON SF.secondaryFamID = FM.secondaryFamID
+    Where FM.famID = famID;
 END//
 
- -- q9) 
-
+-- Q9) 
 CREATE PROCEDURE `Q9`(in locID int, in date DATE)
 BEGIN
 SELECT
@@ -1341,9 +1322,6 @@ ORDER BY
 END //
 
 -- Q12)
-  
--- we have to add some null value of ClubID in ClubMemberPartOfTeam  to fill the requirement of this query
-
 CREATE PROCEDURE `Q12`()
 BEGIN
     SELECT DISTINCT
@@ -1371,15 +1349,12 @@ BEGIN
 END//
 
 -- Q13
-
 CREATE PROCEDURE `Q13`()
 BEGIN
-
   WITH Goalkeepers AS
   (
       SELECT
         CM1.clubID
-
       FROM ClubMember CM1
         INNER JOIN ClubMemberPartOfTeam CMT1 ON CMT1.clubID = CM1.clubID
         INNER JOIN Session S1 ON (CMT1.teamID = S1.teamOneID OR CMT1.teamID = S1.teamTwoID)
@@ -1387,9 +1362,7 @@ BEGIN
         CMT1.roleOnTeam = 'goalkeeper'
       GROUP BY CM1.clubID
       HAVING COUNT(DISTINCT roleOnTeam) = 1
-      
     )
-
    SELECT DISTINCT
     U.userID AS ClubMembership,
     U.firstName AS firstName, 
@@ -1398,20 +1371,18 @@ BEGIN
     U.phone AS phone,
     U.email AS email,
     L.location_name AS LocationName
-
-
    FROM Goalkeepers G
     INNER JOIN Users U ON U.userID = G.clubID
     INNER JOIN ClubMember CM ON CM.clubID = G.clubID
     INNER JOIN FamilyMember FM ON FM.famID = CM.famMemberID
     INNER JOIN RegistrationAtLocation REG ON REG.famID = FM.famID
     INNER JOIN Location L ON L.locID = REG.locID
-
    WHERE
     (YEAR(CURDATE()) - YEAR(U.dateOfBirth) BETWEEN 4 AND 10) AND
     (REG.endDate IS NULL);
 END
 //
+
 -- Q14)
 CREATE PROCEDURE `Q14`()
 BEGIN
@@ -1422,8 +1393,7 @@ BEGIN
         FROM
             ClubMember CM
             INNER JOIN ClubMemberPartOfTeam CMT ON CM.clubID = CMT.clubID
-        GROUP BY
-            CM.clubID, CMT.roleOnTeam
+        GROUP BY CM.clubID, CMT.roleOnTeam
     ),
     DistinctRoles AS (
         SELECT
@@ -1481,7 +1451,7 @@ BEGIN
         U.firstName ASC;
 END //
 
--- Q16) Working
+-- Q16) 
 CREATE PROCEDURE `Q16`()
 BEGIN
     SELECT DISTINCT
@@ -1543,7 +1513,6 @@ END //
 
 
 -- Q18) 
-
 CREATE PROCEDURE Q18()
 BEGIN
     SELECT DISTINCT
@@ -1582,7 +1551,7 @@ BEGIN
 SELECT 
 	U1.firstName as first_name,
 	U1.lastName as last_name,
-	U1.lastName as email,
+	U1.email as email,
 	CMP.roleOnTeam as role,
 	U2.firstName as coach_first_name,
 	U2.lastName as coach_last_name,
@@ -1600,6 +1569,33 @@ INNER JOIN Users as U1 ON U1.userID = CM.clubID
 INNER JOIN Users as U2 ON U2.userID = T.teamCoachID
 INNER JOIN Session as S ON (T.teamID = S.teamOneID or T.teamID = S.teamTwoID) and 
 	DATE(S.time) BETWEEN date and DATE_ADD(date, INTERVAL 7 DAY)
+GROUP BY CM.clubID;
+END//
+
+CREATE PROCEDURE `EmailInfoPrevious`()
+BEGIN
+SELECT 
+	U1.firstName as first_name,
+	U1.lastName as last_name,
+	U1.email as email,
+	CMP.roleOnTeam as role,
+	U2.firstName as coach_first_name,
+	U2.lastName as coach_last_name,
+	U2.email as coach_email,
+	S.time as session_time,
+        S.type as session_type,
+        S.address as session_address,
+        T.teamID as teamID,
+        L.location_name as location_name
+FROM ClubMember as CM
+INNER JOIN ClubMemberPartOfTeam as CMP ON CMP.clubID = CM.clubID
+INNER JOIN Team as T ON CMP.teamID = T.teamID
+INNER JOIN Location as L ON L.locID = T.teamLocation
+INNER JOIN Users as U1 ON U1.userID = CM.clubID
+INNER JOIN Users as U2 ON U2.userID = T.teamCoachID
+INNER JOIN Session as S ON (T.teamID = S.teamOneID or T.teamID = S.teamTwoID) and 
+	DATE(S.time) < CURRENT_DATE()
+GROUP BY CM.clubID;
 END//
 
 DELIMITER ;

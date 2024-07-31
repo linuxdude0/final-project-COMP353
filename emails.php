@@ -13,24 +13,29 @@
 			die($conn->connect_error);
 		}
 		$today = date('Y-m-d');
+		/*
 		$result = $conn->query("SELECT * FROM Email WHERE date='".$today."'");
 		$is_sent = $result->num_rows > 0;
-		function send_mail() {
-			$insert_stored = mysqli->prepare("INSERT INTO Email (
+		$result->fetch_all();
+		*/
+		function send_mail($conn, $today) {
+			$insert_stored = $conn->prepare("INSERT INTO Email (
 				date,
 				sender_email,
 				dest_email,
 				email_title,
-				email_body,
+				email_body
 			) VALUES (?,?,?,?,?)");
 			$email_date = $today;
+			$sender_email = '';
 			$dest_email = '';
 			$email_title = '';
 			$email_body = '';
-			$insert_stored->bind_params("ssss", $email_date, $dest_email, $email_title, $email_body);
-			$mysqli->multi_query("CALL EmailInfo('".$today."')");
+			$insert_stored->bind_param("sssss", $email_date, $sender_email, $dest_email, $email_title, $email_body);
+			$query = "CALL EmailInfo('".$today."')";
+			$conn->multi_query($query);
 			do {
-				if ($result = $mysqli->store_result()) {
+				if ($result = $conn->store_result()) {
 					foreach($result->fetch_all() as $club_member) {
 						$dest_email = $club_member['email'];
 						$email_body = substr("first_name: '".$club_member['first_name']."'\nlast_name: '".$club_member['last_name']."'\nRole: '".$club_member['role']."'\nCoach first name: '".$club_member['coach_first_name']."'\nCoach last name: '".$club_member['coach_last_name']."'\nCoach email: '".$club_member['coach_email']."'\nSession type: '".$club_member['session_type']."'\nSession Address: '".$club_member['session_address']."'\n", 0, 100);
@@ -39,9 +44,39 @@
 					}
 					$result->free();
 				}
-			} while ($mysqli->next_result());
+			} while ($conn->next_result());
+			$insert_stored->close();
 		}
-
+		function send_mails($conn) {
+			$insert_stored = $conn->prepare("INSERT INTO Email (
+				date,
+				sender_email,
+				dest_email,
+				email_title,
+				email_body
+			) VALUES (?,?,?,?,?)");
+			$email_date = $today;
+			$sender_email = '';
+			$dest_email = '';
+			$email_title = '';
+			$email_body = '';
+			$insert_stored->bind_param("sssss", $email_date, $sender_email, $dest_email, $email_title, $email_body);
+			$query = "CALL EmailInfoPrevious()";
+			$conn->multi_query($query);
+			do {
+				if ($result = $conn->store_result()) {
+					$all = $result->fetch_all(MYSQLI_ASSOC);
+					$result->free();
+					foreach($all as $club_member) {
+						$dest_email = $club_member['email'];
+						$email_body = substr("first_name: '".$club_member['first_name']."'\nlast_name: '".$club_member['last_name']."'\nRole: '".$club_member['role']."'\nCoach first name: '".$club_member['coach_first_name']."'\nCoach last name: '".$club_member['coach_last_name']."'\nCoach email: '".$club_member['coach_email']."'\nSession type: '".$club_member['session_type']."'\nSession Address: '".$club_member['session_address']."'\n", 0, 100);
+						$email_title = $club_member['location_name']." ".$club_member['teamID']." ".$club_member['session_time']." ".$club_member['session_type']." session";
+						$insert_stored->execute();
+					}
+				}
+			} while ($conn->next_result());
+			$insert_stored->close();
+		}
 		function print_table($result) {
 			if ($result->num_rows > 0) {
 				echo "<table>";
@@ -65,9 +100,10 @@
 				echo "Empty Set";
 			}
 		}
-		if (date('w') == 0 && !$is_sent) {
-			send_mail();
-		}
+		send_mails($conn);
+		/*if (date('w') == 0 && !$is_sent) {
+			send_mail($conn, $today);
+		}*/
 		echo "<a href='./index.php'>Home</a>";
 		echo "<h1>Email</h1>";
 		print_table($conn->query('SELECT * FROM Email'));
