@@ -1,0 +1,13 @@
+ClubMember
+ClubMemberPartOfTeam
+Email
+FamilyMember
+GeneralManagement
+Location
+LocationOperatingStaff
+Personnel
+RegistrationAtLocation
+SecondaryFamilyMember
+Session
+Team
+Users

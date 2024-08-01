@@ -79,8 +79,8 @@ class TableHandler {
 
 	function generate_sql_connection_code() {
 		$code = "";
-		$code .= "echo \"<a href='index.php'>Home</a><br>\";\n";
-		$code .= "echo \"<a href='manage.php'>Manage</a><br>\";\n";
+		$code .= "echo \"<a href='index.php'><h1>Home</h1></a>\";\n";
+		$code .= "echo \"<a href='manage.php'><h1>Manage</h1></a>\";\n";
 		$code .= "\$s = '".$this->server."';\n";
 		$code .= "\$u = '".$this->username."';\n";
 		$code .= "\$p = '".$this->password."';\n";
@@ -306,7 +306,7 @@ class TableHandler {
 	}
 
 	function generate_page() {
-		$page = "<html><head><title>".$this->table_name."</title></head><body>";
+		$page = "<html><head><style>table, th, td {border:1px solid black;}</style><title>".$this->table_name."</title></head><body>";
 		$page .= "<?php\n".$this->generate_sql_connection_code()."\n?>\n";
 		$page .= $this->show_form_insert();
 		$page .= "<br><br><br>\n";
@@ -336,15 +336,28 @@ $arr = array (
 	"Users",
 );
 $a = fopen("manage.php", "w") or die("huh");
-fwrite($a, "<html><head><title>manage</title></head><body><a href='./index.php'>Home</a><br><br>");
+fwrite($a, "<html><head><title>manage</title></head><body><a href='./index.php'><h1>Home</h1></a>");
 foreach($arr as $b) {
 	fwrite($a, "<a href = './".$b.".php'>".$b."</a><br>");
 }
 fwrite($a, "</body></html>");
+fclose($a);
+$a = fopen("index.php", "w") or die("huh");
+fwrite($a, 
+'<html>
+	<head>
+		<title>Main Project</title>
+	</head>
+	<a href="./manage.php"><h1>Manage Database</h1></a><br>
+	<a href="./reports.php"><h1>Reports</h1></a><br>
+	<a href="./emails.php"><h1>Email Logs</h1></a><br>
+</html>');
+fclose($a);
 foreach($arr as $i) {
 	$t = new TableHandler("localhost", "php", "php", "php_db", $i);
 	$f = fopen($i.".php", "w") or die("huh");
 	fwrite($f, $t->generate_page());
+	fclose($f);
 }
 /*echo $v->insert_generate_prepared_statement();*/
 /*echo $v->show_form_insert();*/

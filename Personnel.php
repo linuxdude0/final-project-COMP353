@@ -1,6 +1,6 @@
-<html><head><title>Personnel</title></head><body><?php
-echo "<a href='index.php'>Home</a><br>";
-echo "<a href='manage.php'>Manage</a><br>";
+<html><head><style>table, th, td {border:1px solid black;}</style><title>Personnel</title></head><body><?php
+echo "<a href='index.php'><h1>Home</h1></a>";
+echo "<a href='manage.php'><h1>Manage</h1></a>";
 $s = 'localhost';
 $u = 'php';
 $p = 'php';

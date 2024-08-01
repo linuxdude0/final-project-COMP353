@@ -527,6 +527,10 @@ INSERT INTO LocationOperatingStaff (locID, staffID, startDate, endDate) VALUES
 
 
 INSERT INTO GeneralManagement (locID, staffID, startDate, endDate) VALUES
+(1, 1009, '2012-01-01', '2014-01-01'),
+(1, 1004, '2015-01-01', '2017-01-01'),
+(1, 1005, '2018-01-01', '2019-01-01'),
+(1, 1006, '2019-01-01', '2019-12-21'),
 (1, 1010, '2020-01-01', '2021-01-01'),
 (1, 1001, '2021-01-02', NULL),
 (2, 1006, '2020-01-01', '2021-01-01'),

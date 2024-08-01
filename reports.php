@@ -1,10 +1,15 @@
 <html>
 	<head>
 		<title>Reports</title>
+		<style>
+			table, th, td {
+				border:1px solid black;
+			}
+		</style>
 	</head>
 	<body>
 <?php
-echo "<a href='./index.php'>home</a>";
+echo "<a href='./index.php'><h1>home</h1></a>";
 $mysqli = new mysqli('localhost', 'php', 'php', 'php_db');
 if ($mysqli->connect_error) {
 	die($mysqli->connect_error);
